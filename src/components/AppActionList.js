@@ -5,35 +5,48 @@ function AppActionList() {
   const [appActions, setAppActions] = useState({});
 
   useEffect(() => {
-    const fetchAppActions = async (providerConfig) => {
+    const fetchAppActions = async () => {
+      const domain = process.env.REACT_APP_AUTH0_DOMAIN;
+      const token = process.env.REACT_APP_TOKEN;
+
       // Fetch all applications
-      const apps = await axios.get(
-        `https://${providerConfig.domain}/api/v2/clients`,
-        {
-          headers: { Authorization: `Bearer ${providerConfig.client_id}` },
-        }
-      );
-
-      // Fetch all actions
-      const actions = await axios.get(
-        `https://${providerConfig.domain}/api/v2/actions`,
-        {
-          headers: { Authorization: `Bearer ${providerConfig.client_id}` },
-        }
-      );
-
-      const actionMap = {};
-
-      /* eslint-disable */
-      console.log(providerConfig);
-
-      // Map actions to applications
-      apps.data.forEach((app) => {
-        actionMap[app.name] = actions.data.actions.filter((action) =>
-          action.code.includes(app.client_id)
-        );
+      const apps = await axios.get(`https://${domain}/api/v2/clients`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
+      let actionMap = {};
+
+      for (const app of apps.data) {
+        actionMap[app.name] = [];
+
+        // Retrieve all actions for each trigger
+        const triggers = await axios.get(
+          `https://${domain}/api/v2/actions/triggers`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (Array.isArray(triggers.data)) {
+          await Promise.all(
+            triggers.data.map(async (trigger) => {
+              const bindings = await axios.get(
+                `https://${domain}/api/v2/actions/triggers/${trigger.id}/bindings`,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+
+              const appActions = bindings.data.bindings.filter((binding) =>
+                binding.action.code.includes(app.client_id)
+              );
+              actionMap[app.name].push(...appActions);
+            })
+          );
+        }
+      }
+
+      // Set the state outside the for loop
       setAppActions(actionMap);
     };
 
