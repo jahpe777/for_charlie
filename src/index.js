@@ -21,6 +21,8 @@ const providerConfig = {
   domain: config.domain,
   clientId: config.clientId,
   onRedirectCallback,
+  scope:
+    "read:current_user update:current_user_metadata openid profile email read:actions read:clients read:roles read:users",
   authorizationParams: {
     redirect_uri: window.location.origin,
     ...(config.audience ? { audience: config.audience } : null),
