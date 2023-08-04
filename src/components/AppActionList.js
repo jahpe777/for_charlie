@@ -4,31 +4,57 @@ import { useAuth0 } from "@auth0/auth0-react";
 import jwtDecode from "jwt-decode";
 
 function AppActionList() {
-  const { getAccessTokenSilently, user, isAuthenticated } = useAuth0();
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const [appActions, setAppActions] = useState({});
   const [isManager, setIsManager] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [userToken, setUserToken] = useState(null);
+  const [reportData, setReportData] = useState(null);
+  const [userMetadata, setUserMetadata] = useState(null);
 
   useEffect(() => {
+    const fetchReportData = (token) => {
+      axios
+        .get("http://localhost:3001/protected", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        .then((response) => {
+          setReportData(response.data);
+        })
+        .catch((error) => {
+          console.error("Problem with the fetch operation: ", error);
+        });
+    };
+
     const fetchAppActions = async () => {
       const domain = process.env.REACT_APP_AUTH0_DOMAIN;
 
       const token = await getAccessTokenSilently({
         audience: "Charlie Identifier",
+        scope:
+          "read:current_user update:current_user_metadata openid profile email read:actions read:clients read:roles read:users",
       });
+      setUserToken(token);
+
+      fetchReportData(token);
 
       // Decode the token to get user id
       const decodedToken = jwtDecode(token);
       const userId = decodedToken.sub;
 
-      const callProtectedApi = await fetch("http://localhost:3001/protected", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const callProtectedApi = await axios.get(
+        "http://localhost:3001/protected",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       console.log(callProtectedApi);
 
-      // Get user profile from the "Get User by ID" endpoint
+      // Retrieve profile from the "Get User by ID" endpoint
       const profileRes = await axios.get(
         `https://${domain}/api/v2/users/${userId}`,
         {
@@ -38,7 +64,7 @@ function AppActionList() {
 
       setUserProfile(profileRes.data);
 
-      // Fetch user roles
+      // Retrieve user roles
       const rolesRes = await axios.get(
         `https://${domain}/api/v2/users/${user.sub}/roles`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -47,7 +73,7 @@ function AppActionList() {
       const userRoles = rolesRes.data.map((role) => role.name);
       setIsManager(userRoles.includes("Manager"));
 
-      // Fetch all applications
+      // Retrieve all applications
       const apps = await axios.get(`https://${domain}/api/v2/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });

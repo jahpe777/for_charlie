@@ -4,7 +4,6 @@ const helmet = require("helmet");
 const { join } = require("path");
 const cors = require("cors");
 const { auth } = require("express-oauth2-jwt-bearer");
-const jwks = require("jwks-rsa");
 
 const app = express();
 app.use(cors());
@@ -22,12 +21,6 @@ app.use(
 app.use(express.static(join(__dirname, "build")));
 
 const jwtCheck = auth({
-  secret: jwks.expressJwtSecret({
-    cache: true,
-    rateLimit: true,
-    jwksRequestsPerMinute: 5,
-    jwksUri: "https://dev-urk57tqh1ecfnln2.us.auth0.com/.well-known/jwks.json",
-  }),
   audience: "Charlie Identifier",
   issuerBaseURL: "https://dev-urk57tqh1ecfnln2.us.auth0.com/",
   tokenSigningAlg: "RS256",
